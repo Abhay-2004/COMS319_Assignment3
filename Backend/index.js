@@ -14,80 +14,125 @@ const dbName = "reactdata";
 const collectionName = "fakestore_catalog";
 
 const client = new MongoClient(url);
-const db = client.db(dbName);
 
-// Endpoint to list all products
-app.get("/products", async (req, res) => {
-  await client.connect();
-  const products = await db.collection(collectionName).find({}).toArray();
-  if (products.length > 0) {
-    res.status(200).send(products);
-  } else {
-    res.status(404).send("No products found.");
-  }
-});
+// Initialize database connection once
+let db;
 
-// Get a single product by ID
-app.get("/products/:id", async (req, res) => {
-  const productId = req.params.id;
-  await client.connect();
-  const query = { _id: new ObjectId(productId) };
-  const product = await db.collection(collectionName).findOne(query);
-  if (!product) res.status(404).send("Product not found");
-  else res.status(200).send(product);
-});
-
-// Add a new product
-app.post("/products", async (req, res) => {
-  try {
-    if (!req.body || Object.keys(req.body).length === 0) {
-      return res.status(400).send({ error: "Bad request: No data provided." });
+async function connectToMongo() {
+    if (!db) {
+        await client.connect();
+        db = client.db(dbName);
+        console.log("Connected to MongoDB");
     }
-    await client.connect();
+}
 
-    // Find the maximum 'id' value from the existing documents
-    const maxIdDoc = await db.collection(collectionName).findOne({}, { sort: { id: -1 } });
-    let maxId = maxIdDoc ? maxIdDoc.id : 0;
+// Connect to MongoDB when the server starts
+connectToMongo().catch(err => console.error("Failed to connect to MongoDB:", err));
 
-    const newProduct = { ...req.body, _id: new ObjectId(), id: ++maxId };
-    const result = await db.collection(collectionName).insertOne(newProduct);
-    res.status(201).send(result.ops[0]);
-  } catch (error) {
-    res.status(500).send({ error: "An internal server error occurred" });
-  }
+app.get("/products", async (req, res) => {
+    try {
+        await connectToMongo();
+        const products = await db.collection(collectionName).find({}).toArray();
+        if (products.length > 0) {
+            res.status(200).send(products);
+        } else {
+            res.status(404).send("No products found.");
+        }
+    } catch (error) {
+        console.error("Failed to fetch products", error);
+        res.status(500).send({ error: "An internal server error occurred while fetching products." });
+    }
 });
 
-// Update an existing product
+app.post("/products", async (req, res) => {
+    if (!req.body || Object.keys(req.body).length === 0) {
+        return res.status(400).send({ error: "Bad request: No data provided." });
+    }
+
+    await connectToMongo();
+    try {
+        const collection = db.collection(collectionName);
+        const maxIdDoc = await collection.findOne({}, { sort: { id: -1 } });
+        const maxId = maxIdDoc ? maxIdDoc.id : 0;
+        const newId = maxId + 1;
+        const newProduct = { ...req.body, id: newId, _id: new ObjectId() };
+
+        const result = await collection.insertOne(newProduct);
+        if (result.acknowledged) {
+            res.status(201).send(newProduct);  // Send back the newly created product
+        } else {
+            throw new Error('Insert failed');
+        }
+    } catch (error) {
+        console.error("Error adding new product:", error);
+        res.status(500).send({ error: "An internal server error occurred while adding product." });
+    }
+});
+
+// Get a single product by ID (using the numerical id instead of _id)
+app.get("/products/:id", async (req, res) => {
+    try {
+        await connectToMongo();
+        const productId = req.params.id;
+        const query = { id: parseInt(productId) };
+        const product = await db.collection(collectionName).findOne(query);
+        if (!product) {
+            res.status(404).send("Product not found");
+        } else {
+            res.status(200).send(product);
+        }
+    } catch (error) {
+        res.status(500).send({ error: "An internal server error occurred while fetching product." });
+    }
+});
+
+// Update an existing product by ID (using the numerical id instead of _id)
 app.put("/products/:id", async (req, res) => {
-  try {
-    const productId = req.params.id;
-    const updatedData = { $set: req.body };
-    await client.connect();
-    const result = await db
-      .collection(collectionName)
-      .updateOne({ _id: new ObjectId(productId) }, updatedData);
-    if (result.matchedCount === 0) res.status(404).send("Product not found.");
-    else res.status(200).send(result);
-  } catch (error) {
-    res.status(500).send({ error: "An internal server error occurred" });
-  }
+    try {
+        await connectToMongo();
+        const productId = parseInt(req.params.id);
+        const { title, price, description, rating } = req.body;
+        const updatedData = { 
+            $set: {
+                title, 
+                price, 
+                description, 
+                "rating.rate": rating.rate, 
+                "rating.count": rating.count
+            } 
+        };
+        const query = { id: productId };
+        const result = await db.collection(collectionName).updateOne(query, updatedData);
+        if (result.matchedCount === 0) {
+            res.status(404).send("Product not found.");
+        } else {
+            res.status(200).send({ message: "Product updated successfully", data: result });
+        }
+    } catch (error) {
+        console.error("Error updating product:", error);
+        res.status(500).send({ error: "An internal server error occurred while updating product." });
+    }
 });
 
-// Delete a product
+// Delete a product by numerical ID
 app.delete("/products/:id", async (req, res) => {
-  try {
-    const productId = req.params.id;
-    await client.connect();
-    const result = await db
-      .collection(collectionName)
-      .deleteOne({ _id: new ObjectId(productId) });
-    if (result.deletedCount === 0) res.status(404).send("Product not found.");
-    else res.status(204).send();
-  } catch (error) {
-    res.status(500).send({ error: "An internal server error occurred" });
-  }
+    try {
+        await connectToMongo();
+        const productId = parseInt(req.params.id);
+        const query = { id: productId };
+        const result = await db.collection(collectionName).deleteOne(query);
+        if (result.deletedCount === 0) {
+            res.status(404).send("Product not found.");
+        } else {
+            res.status(200).send({ message: "Product deleted successfully" });
+        }
+    } catch (error) {
+        console.error("Error deleting product:", error);
+        res.status(500).send({ error: "An internal server error occurred while deleting the product." });
+    }
 });
 
+// Start the server
 app.listen(port, () => {
-  console.log(`App listening at http://${host}:${port}`);
+    console.log(`App listening at http://${host}:${port}`);
 });

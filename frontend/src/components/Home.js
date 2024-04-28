@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import { Link } from "react-router-dom";
 
 const Home = () => {
   const [products, setProducts] = useState([]);
@@ -11,10 +11,10 @@ const Home = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await axios.get('http://localhost:8081/products');
+      const response = await axios.get("http://localhost:8081/products");
       setProducts(response.data);
     } catch (err) {
-      console.error('Error retrieving products:', err);
+      console.error("Error retrieving products:", err);
     }
   };
 
@@ -23,14 +23,16 @@ const Home = () => {
       await axios.delete(`http://localhost:8081/products/${productId}`);
       fetchProducts();
     } catch (err) {
-      console.error('Error deleting product:', err);
+      console.error("Error deleting product:", err);
     }
   };
 
   const toggleCardExpansion = (index) => {
-    const cardBodyElement = document.querySelector(`.card:nth-child(${index + 1}) .card-body`);
+    const cardBodyElement = document.querySelector(
+      `.card:nth-child(${index + 1}) .card-body`
+    );
     if (cardBodyElement) {
-      cardBodyElement.classList.toggle('expanded');
+      cardBodyElement.classList.toggle("expanded");
     }
   };
 
@@ -50,9 +52,17 @@ const Home = () => {
       </div>
       <div className="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-4">
         {products.map((product, index) => (
-          <div className="col" key={product.id} onClick={() => toggleCardExpansion(index)}>
+          <div
+            className="col"
+            key={product.id}
+            onClick={() => toggleCardExpansion(index)}
+          >
             <div className="card h-100 shadow-sm">
-              <img src={product.image} className="card-img-top" alt={product.title} />
+              <img
+                src={product.image}
+                className="card-img-top"
+                alt={product.title}
+              />
               <div className="card-body">
                 <p className="card-text">ID: {product.id}</p>
                 <h5 className="card-title">{product.title}</h5>
@@ -61,19 +71,18 @@ const Home = () => {
                 <p className="card-text">Category: {product.category}</p>
                 <p className="card-text">Rating: {product.rating.rate}</p>
                 <div className="btn-group">
-                  <Link to={`/update/${product._id}`} className="btn btn-sm btn-outline-secondary">
+                  <Link
+                    to={`/update/${product.id}`}
+                    className="btn btn-sm btn-outline-secondary"
+                  >
                     Update
                   </Link>
-                  <button
-                    type="button"
+                  <Link
+                    to={`/delete/${product.id}`}
                     className="btn btn-sm btn-outline-danger"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteProduct(product._id);
-                    }}
                   >
                     Delete
-                  </button>
+                  </Link>
                 </div>
               </div>
             </div>

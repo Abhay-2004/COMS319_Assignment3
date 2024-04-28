@@ -6,6 +6,7 @@ import ProductForm from './components/ProductForm';
 import ProductUpdate from './components/ProductUpdate';
 import StudentInfo from './components/StudentInfo';
 import Home from './components/Home';
+import DeleteProduct from './components/DeleteProduct';
 
 function App() {
   return (
@@ -16,6 +17,8 @@ function App() {
           <Route path="/create" element={<ProductForm />} />
           <Route path="/update/:id" element={<ProductUpdate />} />
           <Route path="/info" element={<StudentInfo />} />
+          {/* Ensure that the route for DeleteProduct is defined correctly */}
+          <Route path="/delete/:id" element={<DeleteProduct />} />
         </Routes>
       </div>
     </Router>

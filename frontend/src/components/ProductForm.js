@@ -38,13 +38,15 @@ const ProductForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      console.log("Sending product data to server:", product);
       const response = await axios.post('http://localhost:8081/products', product);
-      const createdProduct = response.data; // Assuming the server sends the created product in the response
-      navigate(`/update/${createdProduct._id}`);
+      console.log("Product created successfully:", response.data);
+      navigate('/'); // Navigate to the home page after successful submission
     } catch (err) {
-      console.error('Error creating product:', err);
+      console.error('Error creating product:', err.response ? err.response.data.error : err.message);
     }
   };
+  
 
   return (
     <div className="container">
@@ -61,7 +63,6 @@ const ProductForm = () => {
         </Link>
       </div>
       <form onSubmit={handleSubmit}>
-        {/* Add form fields */}
         <div className="mb-3">
           <label htmlFor="title" className="form-label">
             Title
